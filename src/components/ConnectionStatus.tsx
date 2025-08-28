@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ConnectionMonitor, ConnectionStatus } from '@/lib/errorHandling';
+import { ConnectionMonitor, type ConnectionStatus as ConnectionStatusType } from '@/lib/errorHandling';
 
 export default function ConnectionStatus() {
-  const [status, setStatus] = useState<ConnectionStatus>({
+  const [status, setStatus] = useState<ConnectionStatusType>({
     isOnline: true,
     lastCheck: new Date(),
     apiHealth: { yahoo: true, google: true },

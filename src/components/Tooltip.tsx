@@ -58,7 +58,7 @@ export function PERatioTooltip({ children }: { children: React.ReactNode }) {
         <div>
           <p className="font-semibold mb-1">P/E Ratio (Price-to-Earnings)</p>
           <p className="text-xs text-gray-300">
-            Measures a company's stock price relative to its earnings per share. 
+            Measures a companycompany'sapos;s stock price relative to its earnings per share. 
             Lower ratios may indicate undervalued stocks, while higher ratios 
             suggest growth expectations.
           </p>
@@ -96,7 +96,7 @@ export function MarketCapTooltip({ children }: { children: React.ReactNode }) {
         <div>
           <p className="font-semibold mb-1">Market Capitalization</p>
           <p className="text-xs text-gray-300">
-            Total value of a company's shares. Calculated by multiplying 
+            Total value of a companycompany'sapos;s shares. Calculated by multiplying 
             current stock price by total number of outstanding shares. 
             Indicates company size and market value.
           </p>

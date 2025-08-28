@@ -194,7 +194,7 @@ export default function PortfolioCharts({ stocks, sectors }: PortfolioChartsProp
                 />
                 <Bar 
                   dataKey="gainLoss" 
-                  fill={(entry: any) => entry.gainLoss >= 0 ? '#10B981' : '#EF4444'}
+                  fill="#10B981"
                   radius={[0, 4, 4, 0]}
                 />
               </BarChart>
