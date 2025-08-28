@@ -22,7 +22,9 @@
     "clean": "rm -rf .next node_modules/.cache",
     "clean:all": "rm -rf .next node_modules package-lock.json && npm install",
     "vercel:deploy": "vercel --prod",
-    "vercel:dev": "vercel dev"
+    "vercel:dev": "vercel dev",
+    "vercel:build": "next build",
+    "deploy": "./deploy.sh"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.13.2",

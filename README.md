@@ -17,6 +17,7 @@ A modern, real-time portfolio dashboard built with Next.js 15, TypeScript, and T
 - Node.js 18+ 
 - npm or yarn
 - Git
+- Vercel account (for deployment)
 
 ## 🛠️ Installation
 
@@ -45,6 +46,80 @@ A modern, real-time portfolio dashboard built with Next.js 15, TypeScript, and T
 
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🚀 Vercel Deployment
+
+### Quick Deploy (Recommended)
+
+1. **Install Vercel CLI**
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Login to Vercel**
+   ```bash
+   vercel login
+   ```
+
+3. **Deploy to Vercel**
+   ```bash
+   vercel --prod
+   ```
+
+4. **Set Environment Variables in Vercel Dashboard**
+   - Go to your project settings in Vercel
+   - Navigate to the "Environment Variables" section
+   - Add the required environment variables (see below)
+
+### GitHub Integration (Automatic Deployments)
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Connect to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your GitHub repository
+   - Configure environment variables
+   - Deploy
+
+3. **Automatic Deployments**
+   - Every push to main branch triggers automatic deployment
+   - Preview deployments for pull requests
+   - Automatic rollback on failed deployments
+
+### Environment Variables for Vercel
+
+Set these in your Vercel project dashboard:
+
+#### Required Variables
+```env
+# WebSocket Configuration
+NEXT_PUBLIC_WEBSOCKET_URL=wss://your-websocket-server.com
+
+# API Configuration
+NEXT_PUBLIC_API_BASE_URL=https://your-vercel-domain.vercel.app/api
+NEXT_PUBLIC_RATE_LIMIT_PER_MINUTE=50
+
+# Production Configuration
+NEXT_PUBLIC_ENABLE_MOCK_DATA=true
+NEXT_PUBLIC_DEBUG_MODE=false
+```
+
+#### Optional Variables
+```env
+# External Finance APIs (for production)
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+YAHOO_FINANCE_API_KEY=your_yahoo_finance_api_key
+
+# Analytics and Monitoring
+NEXT_PUBLIC_ENABLE_ANALYTICS=false
+NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
+```
 
 ## 🔧 Environment Variables
 
@@ -108,6 +183,18 @@ npm start
 
 # Start production server with custom port
 npm run start:prod
+```
+
+### Vercel Deployment
+```bash
+# Deploy to Vercel production
+npm run vercel:deploy
+
+# Start Vercel development environment
+npm run vercel:dev
+
+# Build for Vercel
+npm run vercel:build
 ```
 
 ### Code Quality
@@ -199,6 +286,199 @@ Real-time price updates via WebSocket:
 // Connection: wss://your-websocket-server.com
 // Message Types: price_update, heartbeat, subscribe, unsubscribe
 ```
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. **Install Vercel CLI**
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy to Vercel**
+   ```bash
+   # Deploy to production
+   npm run vercel:deploy
+   
+   # Or use Vercel CLI directly
+   vercel --prod
+   ```
+
+3. **Set environment variables in Vercel dashboard**
+   - Go to your project settings in Vercel
+   - Add the required environment variables from `.env.example`
+   - Ensure `NEXT_PUBLIC_WEBSOCKET_URL` is set for real-time features
+
+4. **Automatic deployments**
+   - Connect your GitHub repository to Vercel
+   - Every push to main branch will trigger automatic deployment
+   - Preview deployments are created for pull requests
+
+### Manual Deployment
+
+1. **Build the application**
+   ```bash
+   npm run build
+   ```
+
+2. **Start the production server**
+   ```bash
+   npm start
+   ```
+
+## 🔧 Configuration
+
+### WebSocket Configuration
+```typescript
+const wsConfig = {
+  url: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
+  reconnectAttempts: 5,
+  reconnectInterval: 1000,
+  heartbeatInterval: 30000,
+  fallbackToPolling: true,
+};
+```
+
+### API Rate Limiting
+```typescript
+const rateLimitConfig = {
+  requestsPerMinute: 50,
+  burstLimit: 10,
+  windowMs: 60000,
+};
+```
+
+### Caching Configuration
+```typescript
+const cacheConfig = {
+  ttl: 60000, // 60 seconds
+  maxSize: 1000,
+  cleanupInterval: 300000, // 5 minutes
+};
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### 1. WebSocket Connection Failures
+**Problem**: WebSocket connection fails to establish
+**Solution**: 
+- Check `NEXT_PUBLIC_WEBSOCKET_URL` in environment variables
+- Verify WebSocket server is running and accessible
+- Check browser console for connection errors
+- Application will automatically fall back to polling
+
+#### 2. API Rate Limiting
+**Problem**: "Too many requests" errors
+**Solution**:
+- Increase `NEXT_PUBLIC_RATE_LIMIT_PER_MINUTE` in environment variables
+- Implement proper caching strategies
+- Use batch requests when possible
+
+#### 3. Unofficial Finance API Issues
+**Problem**: Finance APIs return errors or no data
+**Solution**:
+- The application uses mock data by default
+- For production, configure real API keys
+- Implement proper error handling and fallbacks
+- Consider using multiple data sources
+
+#### 4. Build Errors
+**Problem**: TypeScript compilation fails
+**Solution**:
+```bash
+# Clear Next.js cache
+rm -rf .next
+
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+
+# Run type check
+npm run type-check
+```
+
+#### 5. Performance Issues
+**Problem**: Slow loading or poor performance
+**Solution**:
+- Enable production mode: `NODE_ENV=production`
+- Optimize bundle size: `npm run build:analyze`
+- Implement proper caching strategies
+- Use React.memo for expensive components
+
+#### 6. Vercel Deployment Issues
+**Problem**: Build fails on Vercel
+**Solution**:
+- Check environment variables in Vercel dashboard
+- Ensure all dependencies are in `package.json`
+- Check build logs for specific errors
+- Verify TypeScript compilation passes locally
+
+### Debug Mode
+
+Enable debug mode to get detailed logging:
+
+```bash
+# Set environment variable
+NEXT_PUBLIC_DEBUG_MODE=true
+
+# Or run with debug flag
+npm run dev:debug
+```
+
+## 📊 Performance Monitoring
+
+### Bundle Analysis
+```bash
+npm run build:analyze
+```
+
+### Lighthouse Audit
+```bash
+# Install Lighthouse
+npm install -g lighthouse
+
+# Run audit
+lighthouse http://localhost:3000 --output html
+```
+
+## 🔒 Security Considerations
+
+1. **Environment Variables**: Never commit `.env.local` to version control
+2. **API Keys**: Use environment variables for all API keys
+3. **Rate Limiting**: Implement proper rate limiting for all API endpoints
+4. **Input Validation**: Validate all user inputs
+5. **HTTPS**: Use HTTPS in production (automatic with Vercel)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add feature'`
+4. Push to the branch: `git push origin feature-name`
+5. Submit a pull request
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - React framework
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [Recharts](https://recharts.org/) - Chart library
+- [React Table](https://tanstack.com/table/v8) - Table library
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Vercel](https://vercel.com/) - Deployment platform
+
+## 📞 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the troubleshooting section
+- Review the documentation
+
+---
+
+**Note**: This application uses mock data for demonstration purposes. For production use, configure real financial data APIs and ensure compliance with relevant regulations.
 
 
 
