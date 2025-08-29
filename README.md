@@ -1,4 +1,4 @@
-# Portfolio Dashboard - Real-Time Stock Management
+# Portfolio Dashboard -Real-Time Stock Management
 
 A modern, real-time portfolio dashboard built with Next.js 15, TypeScript, and Tailwind CSS. Features comprehensive error handling, WebSocket connections for live price updates, and a professional financial application interface.
 
