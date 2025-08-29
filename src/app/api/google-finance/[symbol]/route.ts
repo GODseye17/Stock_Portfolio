@@ -75,7 +75,14 @@ async function fetchPolygonData(symbol: string): Promise<GoogleFinanceQuote> {
       throw new Error("Polygon API key not configured");
     }
     
-    const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${apiKey}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${apiKey}`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -120,7 +127,14 @@ async function fetchIEXData(symbol: string): Promise<GoogleFinanceQuote> {
       throw new Error("IEX API key not configured");
     }
     
-    const response = await fetch(`https://cloud.iexapis.com/stable/stock/${symbol}/quote?token=${apiKey}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    const response = await fetch(`https://cloud.iexapis.com/stable/stock/${symbol}/quote?token=${apiKey}`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

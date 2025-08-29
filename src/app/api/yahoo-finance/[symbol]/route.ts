@@ -71,7 +71,7 @@ async function retryOperation<T>(
 async function fetchYahooFinanceData(symbol: string): Promise<YahooFinanceQuote> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, {
       signal: controller.signal,
@@ -130,7 +130,7 @@ async function fetchAlphaVantageData(symbol: string): Promise<YahooFinanceQuote>
     }
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`, {
       signal: controller.signal
