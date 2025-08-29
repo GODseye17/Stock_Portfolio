@@ -15,9 +15,10 @@ interface BatchRequest {
 const SERVICE_CONFIG = {
   CACHE_DURATION: 60 * 1000,
   BATCH_SIZE: 5,
-  REQUEST_TIMEOUT: 10000,
-  RETRY_ATTEMPTS: 2,
-  RETRY_DELAY: 1000,
+  REQUEST_TIMEOUT: 5000,
+  RETRY_ATTEMPTS: 1,
+  RETRY_DELAY: 500,
+  FALLBACK_TIMEOUT: 3000,
 } as const;
 
 const DEFAULT_VALUES = {
@@ -209,7 +210,7 @@ class StockDataService {
       }
       return null;
     } catch (error) {
-      console.error(`Yahoo Finance fetch error for ${symbol}:`, error);
+      console.warn(`Yahoo Finance fetch error for ${symbol}:`, error);
       return null;
     }
   }
@@ -217,7 +218,7 @@ class StockDataService {
   private async fetchFromGoogleFinance(symbol: string, dataType: 'price' | 'pe' | 'earnings'): Promise<any> {
     try {
       const response = await axios.get(`/api/google-finance/${symbol}`, {
-        timeout: SERVICE_CONFIG.REQUEST_TIMEOUT,
+        timeout: SERVICE_CONFIG.FALLBACK_TIMEOUT,
       });
 
       if (response.data.success && response.data.data) {
@@ -234,7 +235,7 @@ class StockDataService {
       }
       return null;
     } catch (error) {
-      console.error(`Google Finance fetch error for ${symbol}:`, error);
+      console.warn(`Google Finance fetch error for ${symbol}:`, error);
       return null;
     }
   }

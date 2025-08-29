@@ -70,7 +70,17 @@ async function retryOperation<T>(
 
 async function fetchYahooFinanceData(symbol: string): Promise<YahooFinanceQuote> {
   try {
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -85,7 +95,6 @@ async function fetchYahooFinanceData(symbol: string): Promise<YahooFinanceQuote>
     const result = data.chart.result[0];
     const meta = result.meta;
     const quote = result.indicators.quote[0];
-    const timestamp = result.timestamp[result.timestamp.length - 1];
     
     const currentPrice = meta.regularMarketPrice || quote.close[quote.close.length - 1];
     const previousClose = meta.previousClose || quote.close[quote.close.length - 2] || currentPrice;
@@ -108,7 +117,7 @@ async function fetchYahooFinanceData(symbol: string): Promise<YahooFinanceQuote>
       currency: meta.currency || "USD",
     };
   } catch (error) {
-    console.error(`Error fetching Yahoo Finance data for ${symbol}:`, error);
+    console.warn(`Error fetching Yahoo Finance data for ${symbol}:`, error);
     throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
@@ -120,7 +129,14 @@ async function fetchAlphaVantageData(symbol: string): Promise<YahooFinanceQuote>
       throw new Error("Alpha Vantage API key not configured");
     }
     
-    const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -150,7 +166,7 @@ async function fetchAlphaVantageData(symbol: string): Promise<YahooFinanceQuote>
       currency: "USD",
     };
   } catch (error) {
-    console.error(`Error fetching Alpha Vantage data for ${symbol}:`, error);
+    console.warn(`Error fetching Alpha Vantage data for ${symbol}:`, error);
     throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
