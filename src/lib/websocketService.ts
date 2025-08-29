@@ -300,7 +300,7 @@ class WebSocketService {
       try {
         const mockUpdates = Array.from(this.subscribedSymbols).map(symbol => ({
           symbol,
-          price: this.generateMockPrice(symbol),
+          price: 100 + Math.random() * 1000,
           timestamp: new Date(),
         }));
 

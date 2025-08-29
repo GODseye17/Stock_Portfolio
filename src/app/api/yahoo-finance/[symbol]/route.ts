@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { YahooFinanceQuote, ApiResponse } from '@/types/portfolio';
+import { NextRequest, NextResponse } from "next/server";
+import { YahooFinanceQuote, ApiResponse } from "@/types/portfolio";
 
 const cache = new Map<string, { data: any; timestamp: number }>();
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -9,9 +9,9 @@ const RATE_LIMIT = 50;
 const RATE_LIMIT_WINDOW = 60 * 1000;
 
 function getClientIP(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0] || 
-         request.headers.get('x-real-ip') || 
-         'unknown';
+  return request.headers.get("x-forwarded-for")?.split(",")[0] || 
+         request.headers.get("x-real-ip") || 
+         "unknown";
 }
 
 function checkRateLimit(clientIP: string): boolean {
@@ -54,7 +54,7 @@ async function retryOperation<T>(
     try {
       return await operation();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error');
+      lastError = error instanceof Error ? error : new Error("Unknown error");
       
       if (attempt === maxRetries) {
         throw lastError;
@@ -68,29 +68,90 @@ async function retryOperation<T>(
   throw lastError!;
 }
 
-async function scrapeYahooFinance(symbol: string): Promise<YahooFinanceQuote> {
+async function fetchYahooFinanceData(symbol: string): Promise<YahooFinanceQuote> {
   try {
-    const mockPrice = 100 + Math.random() * 1000;
-    const mockChange = (Math.random() - 0.5) * 50;
-    const mockChangePercent = (mockChange / mockPrice) * 100;
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      throw new Error("No data available for symbol");
+    }
+    
+    const result = data.chart.result[0];
+    const meta = result.meta;
+    const quote = result.indicators.quote[0];
+    const timestamp = result.timestamp[result.timestamp.length - 1];
+    
+    const currentPrice = meta.regularMarketPrice || quote.close[quote.close.length - 1];
+    const previousClose = meta.previousClose || quote.close[quote.close.length - 2] || currentPrice;
+    const change = currentPrice - previousClose;
+    const changePercent = (change / previousClose) * 100;
     
     return {
       symbol: symbol,
-      regularMarketPrice: mockPrice,
-      regularMarketChange: mockChange,
-      regularMarketChangePercent: mockChangePercent,
-      regularMarketVolume: Math.floor(Math.random() * 1000000),
-      marketCap: mockPrice * Math.floor(Math.random() * 1000000),
-      peRatio: 10 + Math.random() * 30,
-      eps: mockPrice * 0.05 + Math.random() * 2,
-      dividendYield: Math.random() * 5,
-      sector: 'Technology',
-      industry: 'Software',
-      exchange: 'NSE',
-      currency: 'INR',
+      regularMarketPrice: currentPrice,
+      regularMarketChange: change,
+      regularMarketChangePercent: changePercent,
+      regularMarketVolume: meta.regularMarketVolume || quote.volume[quote.volume.length - 1] || 0,
+      marketCap: meta.marketCap || 0,
+      peRatio: meta.trailingPE || null,
+      eps: meta.epsTrailingTwelveMonths || null,
+      dividendYield: meta.trailingAnnualDividendYield ? meta.trailingAnnualDividendYield * 100 : null,
+      sector: meta.sector || "Unknown",
+      industry: meta.industry || "Unknown",
+      exchange: meta.exchangeName || "Unknown",
+      currency: meta.currency || "USD",
     };
   } catch (error) {
-    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Error fetching Yahoo Finance data for ${symbol}:`, error);
+    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
+async function fetchAlphaVantageData(symbol: string): Promise<YahooFinanceQuote> {
+  try {
+    const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+    if (!apiKey) {
+      throw new Error("Alpha Vantage API key not configured");
+    }
+    
+    const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data["Global Quote"] || Object.keys(data["Global Quote"]).length === 0) {
+      throw new Error("No data available for symbol");
+    }
+    
+    const quote = data["Global Quote"];
+    
+    return {
+      symbol: symbol,
+      regularMarketPrice: parseFloat(quote["05. price"]),
+      regularMarketChange: parseFloat(quote["09. change"]),
+      regularMarketChangePercent: parseFloat(quote["10. change percent"].replace("%", "")),
+      regularMarketVolume: parseInt(quote["06. volume"]),
+      marketCap: 0,
+      peRatio: null,
+      eps: null,
+      dividendYield: null,
+      sector: "Unknown",
+      industry: "Unknown",
+      exchange: quote["01. exchange"] || "Unknown",
+      currency: "USD",
+    };
+  } catch (error) {
+    console.error(`Error fetching Alpha Vantage data for ${symbol}:`, error);
+    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -105,7 +166,7 @@ export async function GET(
     
     if (!checkRateLimit(clientIP)) {
       return NextResponse.json(
-        { success: false, error: 'Rate limit exceeded' },
+        { success: false, error: "Rate limit exceeded" },
         { status: 429 }
       );
     }
@@ -121,7 +182,17 @@ export async function GET(
       });
     }
 
-    const data = await retryOperation(() => scrapeYahooFinance(symbolUpper));
+    let data: YahooFinanceQuote;
+    try {
+      data = await retryOperation(() => fetchYahooFinanceData(symbolUpper));
+    } catch (error) {
+      console.log(`Yahoo Finance failed for ${symbolUpper}, trying Alpha Vantage...`);
+      try {
+        data = await retryOperation(() => fetchAlphaVantageData(symbolUpper));
+      } catch (alphaError) {
+        throw new Error(`Both Yahoo Finance and Alpha Vantage failed for ${symbolUpper}`);
+      }
+    }
     
     setCachedData(cacheKey, data);
 
@@ -134,9 +205,9 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Yahoo Finance API Error:', error);
+    console.error("Yahoo Finance API Error:", error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     
     return NextResponse.json(
       { success: false, error: errorMessage, data: null, timestamp: new Date().toISOString() },

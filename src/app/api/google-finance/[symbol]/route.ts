@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleFinanceQuote, ApiResponse } from '@/types/portfolio';
+import { NextRequest, NextResponse } from "next/server";
+import { GoogleFinanceQuote, ApiResponse } from "@/types/portfolio";
 
 const cache = new Map<string, { data: any; timestamp: number }>();
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -9,9 +9,9 @@ const RATE_LIMIT = 50;
 const RATE_LIMIT_WINDOW = 60 * 1000;
 
 function getClientIP(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0] || 
-         request.headers.get('x-real-ip') || 
-         'unknown';
+  return request.headers.get("x-forwarded-for")?.split(",")[0] || 
+         request.headers.get("x-real-ip") || 
+         "unknown";
 }
 
 function checkRateLimit(clientIP: string): boolean {
@@ -54,7 +54,7 @@ async function retryOperation<T>(
     try {
       return await operation();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error');
+      lastError = error instanceof Error ? error : new Error("Unknown error");
       
       if (attempt === maxRetries) {
         throw lastError;
@@ -68,53 +68,83 @@ async function retryOperation<T>(
   throw lastError!;
 }
 
-async function scrapeGoogleFinance(symbol: string): Promise<GoogleFinanceQuote> {
+async function fetchPolygonData(symbol: string): Promise<GoogleFinanceQuote> {
   try {
-    const mockPrice = 100 + Math.random() * 1000;
-    const mockChange = (Math.random() - 0.5) * 50;
-    const mockChangePercent = (mockChange / mockPrice) * 100;
+    const apiKey = process.env.POLYGON_API_KEY;
+    if (!apiKey) {
+      throw new Error("Polygon API key not configured");
+    }
+    
+    const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${apiKey}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.results || data.results.length === 0) {
+      throw new Error("No data available for symbol");
+    }
+    
+    const quote = data.results[0];
+    const open = quote.o;
+    const close = quote.c;
+    const change = close - open;
+    const changePercent = (change / open) * 100;
     
     return {
       ticker: symbol,
-      price: mockPrice,
-      change: mockChange,
-      changePercent: mockChangePercent,
-      volume: Math.floor(Math.random() * 1000000),
-      marketCap: mockPrice * Math.floor(Math.random() * 1000000),
-      peRatio: 10 + Math.random() * 30,
-      eps: mockPrice * 0.05 + Math.random() * 2,
-      dividendYield: Math.random() * 5,
-      sector: 'Technology',
-      exchange: 'NSE',
-      currency: 'INR',
+      price: close,
+      change: change,
+      changePercent: changePercent,
+      volume: quote.v,
+      marketCap: 0,
+      peRatio: null,
+      eps: null,
+      dividendYield: null,
+      sector: "Unknown",
+      exchange: "Unknown",
+      currency: "USD",
     };
   } catch (error) {
-    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Error fetching Polygon data for ${symbol}:`, error);
+    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
-async function fetchAlternativeData(symbol: string): Promise<GoogleFinanceQuote> {
+async function fetchIEXData(symbol: string): Promise<GoogleFinanceQuote> {
   try {
-    const mockPrice = 100 + Math.random() * 1000;
-    const mockChange = (Math.random() - 0.5) * 50;
-    const mockChangePercent = (mockChange / mockPrice) * 100;
+    const apiKey = process.env.IEX_API_KEY;
+    if (!apiKey) {
+      throw new Error("IEX API key not configured");
+    }
+    
+    const response = await fetch(`https://cloud.iexapis.com/stable/stock/${symbol}/quote?token=${apiKey}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
     
     return {
       ticker: symbol,
-      price: mockPrice,
-      change: mockChange,
-      changePercent: mockChangePercent,
-      volume: Math.floor(Math.random() * 1000000),
-      marketCap: mockPrice * Math.floor(Math.random() * 1000000),
-      peRatio: 10 + Math.random() * 30,
-      eps: mockPrice * 0.05 + Math.random() * 2,
-      dividendYield: Math.random() * 5,
-      sector: 'Technology',
-      exchange: 'NSE',
-      currency: 'INR',
+      price: data.latestPrice,
+      change: data.change,
+      changePercent: data.changePercent * 100,
+      volume: data.latestVolume,
+      marketCap: data.marketCap || 0,
+      peRatio: data.peRatio,
+      eps: data.eps,
+      dividendYield: data.ytdChange ? data.ytdChange * 100 : null,
+      sector: data.sector || "Unknown",
+      exchange: data.primaryExchange || "Unknown",
+      currency: "USD",
     };
   } catch (error) {
-    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Error fetching IEX data for ${symbol}:`, error);
+    throw new Error(`Failed to fetch data for ${symbol}: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -129,7 +159,7 @@ export async function GET(
     
     if (!checkRateLimit(clientIP)) {
       return NextResponse.json(
-        { success: false, error: 'Rate limit exceeded' },
+        { success: false, error: "Rate limit exceeded" },
         { status: 429 }
       );
     }
@@ -147,9 +177,14 @@ export async function GET(
 
     let data: GoogleFinanceQuote;
     try {
-      data = await retryOperation(() => scrapeGoogleFinance(symbolUpper));
+      data = await retryOperation(() => fetchPolygonData(symbolUpper));
     } catch (error) {
-      data = await retryOperation(() => fetchAlternativeData(symbolUpper));
+      console.log(`Polygon failed for ${symbolUpper}, trying IEX...`);
+      try {
+        data = await retryOperation(() => fetchIEXData(symbolUpper));
+      } catch (iexError) {
+        throw new Error(`Both Polygon and IEX failed for ${symbolUpper}`);
+      }
     }
     
     setCachedData(cacheKey, data);
@@ -163,9 +198,9 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Google Finance API Error:', error);
+    console.error("Google Finance API Error:", error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     
     return NextResponse.json(
       { success: false, error: errorMessage, data: null, timestamp: new Date().toISOString() },
